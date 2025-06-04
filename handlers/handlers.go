@@ -1,12 +1,10 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
-	"slices"
 
-	"educabot.com/bookshop/models"
 	"educabot.com/bookshop/providers"
+	"educabot.com/bookshop/services"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,23 +13,27 @@ type GetMetricsRequest struct {
 }
 
 func NewGetMetrics(booksProvider providers.BooksProvider) GetMetrics {
-	return GetMetrics{booksProvider}
+	return GetMetrics{
+		booksProvider: booksProvider,
+		service:       services.NewMetricsService(),
+	}
 }
 
 type GetMetrics struct {
 	booksProvider providers.BooksProvider
+	service       *services.MetricsService
 }
 
 func (h GetMetrics) Handle() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var query GetMetricsRequest
-		ctx.ShouldBindQuery(&query) // this returns error
+		ctx.ShouldBindQuery(&query)
 
-		books := h.booksProvider.GetBooks(context.Background())
+		books := h.booksProvider.GetBooks(ctx)
 
-		meanUnitsSold := meanUnitsSold(ctx, books)
-		cheapestBook := cheapestBook(ctx, books).Name
-		booksWrittenByAuthor := booksWrittenByAuthor(ctx, books, query.Author)
+		meanUnitsSold := h.service.MeanUnitsSold(books)
+		cheapestBook := h.service.CheapestBook(books).Name
+		booksWrittenByAuthor := h.service.BooksWrittenByAuthor(books, query.Author)
 
 		ctx.JSON(http.StatusOK, map[string]interface{}{
 			"mean_units_sold":         meanUnitsSold,
@@ -39,28 +41,4 @@ func (h GetMetrics) Handle() gin.HandlerFunc {
 			"books_written_by_author": booksWrittenByAuthor,
 		})
 	}
-}
-
-func meanUnitsSold(_ context.Context, books []models.Book) uint {
-	var sum uint
-	for _, book := range books {
-		sum += book.UnitsSold
-	}
-	return sum / uint(len(books))
-}
-
-func cheapestBook(_ context.Context, books []models.Book) models.Book {
-	return slices.MinFunc(books, func(a, b models.Book) int {
-		return int(a.Price - b.Price)
-	})
-}
-
-func booksWrittenByAuthor(_ context.Context, books []models.Book, author string) uint {
-	var count uint
-	for _, book := range books {
-		if book.Author == author {
-			count++
-		}
-	}
-	return count
 }
