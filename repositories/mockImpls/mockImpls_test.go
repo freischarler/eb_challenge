@@ -7,13 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMockBooksRepositories_GetBooks(t *testing.T) {
+func TestMockBooksRepositories_GetBooksProvider(t *testing.T) {
 	// Arrange
 	mock := NewMockBooksRepositories()
 	ctx := context.Background()
 
 	// Act
-	books, err := mock.GetBooks(ctx)
+	books, err := mock.GetBooksProvider(ctx)
 
 	// Assert
 	assert.NoError(t, err)

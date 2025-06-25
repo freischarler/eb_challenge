@@ -14,7 +14,7 @@ import (
 var ErrServiceUnavailable = errors.New("external service failure")
 
 type BooksRepository interface {
-	GetBooks(ctx context.Context) ([]models.Book, error)
+	GetBooksProvider(ctx context.Context) ([]models.Book, error)
 }
 
 type ExternalBooksRepository struct {
@@ -25,7 +25,7 @@ func NewExternalBooksRepository(endpoint string) *ExternalBooksRepository {
 	return &ExternalBooksRepository{Endpoint: endpoint}
 }
 
-func (r *ExternalBooksRepository) GetBooks(ctx context.Context) ([]models.Book, error) {
+func (r *ExternalBooksRepository) GetBooksProvider(ctx context.Context) ([]models.Book, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.Endpoint, nil)
 	if err != nil {
 		return nil, err

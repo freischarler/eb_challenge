@@ -148,6 +148,6 @@ func TestNewHandler(t *testing.T) {
 // Mock repository that returns an error for testing failure scenarios
 type mockErrorRepository struct{}
 
-func (m *mockErrorRepository) GetBooks(ctx context.Context) ([]models.Book, error) {
+func (m *mockErrorRepository) GetBooksProvider(ctx context.Context) ([]models.Book, error) {
 	return nil, errors.New("repository error")
 }

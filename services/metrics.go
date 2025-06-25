@@ -27,7 +27,7 @@ func NewMetricsService(repository repositories.BooksRepository) *MetricsService 
 }
 
 func (s *MetricsService) ComputeMetrics(ctx context.Context, author string) (*MetricsResult, error) {
-	books, err := s.booksRepositories.GetBooks(ctx)
+	books, err := s.booksRepositories.GetBooksProvider(ctx)
 	if err != nil {
 		return nil, ErrExternalServiceFailure
 	}

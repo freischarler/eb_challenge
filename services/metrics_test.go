@@ -182,6 +182,6 @@ func TestMetricsService_booksWrittenByAuthor_NoMatches(t *testing.T) {
 // Mock repository that returns an error for testing error scenarios
 type MockBooksRepositoryWithError struct{}
 
-func (m *MockBooksRepositoryWithError) GetBooks(ctx context.Context) ([]models.Book, error) {
+func (m *MockBooksRepositoryWithError) GetBooksProvider(ctx context.Context) ([]models.Book, error) {
 	return nil, errors.New("repository error")
 }

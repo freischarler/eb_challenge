@@ -28,7 +28,7 @@ func TestExternalBooksRepository_GetBooks_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Act
-	books, err := repo.GetBooks(ctx)
+	books, err := repo.GetBooksProvider(ctx)
 
 	// Assert
 	assert.NoError(t, err)
@@ -41,7 +41,7 @@ func TestExternalBooksRepository_GetBooks_InvalidURL(t *testing.T) {
 	ctx := context.Background()
 
 	// Act
-	books, err := repo.GetBooks(ctx)
+	books, err := repo.GetBooksProvider(ctx)
 
 	// Assert
 	assert.Error(t, err)
@@ -54,7 +54,7 @@ func TestExternalBooksRepository_GetBooks_NetworkError(t *testing.T) {
 	ctx := context.Background()
 
 	// Act
-	books, err := repo.GetBooks(ctx)
+	books, err := repo.GetBooksProvider(ctx)
 
 	// Assert
 	assert.Equal(t, ErrServiceUnavailable, err)
@@ -72,7 +72,7 @@ func TestExternalBooksRepository_GetBooks_NonOKStatus(t *testing.T) {
 	ctx := context.Background()
 
 	// Act
-	books, err := repo.GetBooks(ctx)
+	books, err := repo.GetBooksProvider(ctx)
 
 	// Assert
 	assert.Error(t, err)
@@ -92,7 +92,7 @@ func TestExternalBooksRepository_GetBooks_InvalidJSON(t *testing.T) {
 	ctx := context.Background()
 
 	// Act
-	books, err := repo.GetBooks(ctx)
+	books, err := repo.GetBooksProvider(ctx)
 
 	// Assert
 	assert.Error(t, err)
@@ -112,7 +112,7 @@ func TestExternalBooksRepository_GetBooks_ContextCancellation(t *testing.T) {
 	defer cancel()
 
 	// Act
-	books, err := repo.GetBooks(ctx)
+	books, err := repo.GetBooksProvider(ctx)
 
 	// Assert
 	assert.Equal(t, ErrServiceUnavailable, err)
@@ -131,7 +131,7 @@ func TestExternalBooksRepository_GetBooks_EmptyResponse(t *testing.T) {
 	ctx := context.Background()
 
 	// Act
-	books, err := repo.GetBooks(ctx)
+	books, err := repo.GetBooksProvider(ctx)
 
 	// Assert
 	assert.NoError(t, err)
