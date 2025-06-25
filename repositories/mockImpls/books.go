@@ -8,16 +8,16 @@ import (
 
 //comentario
 
-type MockBooksProvider struct{}
+type MockBooksRepositories struct{}
 
-func NewMockBooksProvider() *MockBooksProvider {
-	return &MockBooksProvider{}
+func NewMockBooksRepositories() *MockBooksRepositories {
+	return &MockBooksRepositories{}
 }
 
-func (m *MockBooksProvider) GetBooks(_ context.Context) []models.Book {
+func (m *MockBooksRepositories) GetBooks(_ context.Context) ([]models.Book, error) {
 	return []models.Book{
 		{ID: 1, Name: "The Go Programming Language", Author: "Alan Donovan", UnitsSold: 5000, Price: 40},
 		{ID: 2, Name: "Clean Code", Author: "Robert C. Martin", UnitsSold: 15000, Price: 50},
 		{ID: 3, Name: "The Pragmatic Programmer", Author: "Andrew Hunt", UnitsSold: 13000, Price: 45},
-	}
+	}, nil
 }

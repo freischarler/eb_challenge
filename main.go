@@ -4,19 +4,34 @@ import (
 	"fmt"
 
 	"educabot.com/bookshop/handlers"
-	"educabot.com/bookshop/providers"
-
+	"educabot.com/bookshop/repositories"
+	"educabot.com/bookshop/services"
 	"github.com/gin-gonic/gin"
 )
 
-func main() {
-	router := gin.New()
+func setupRouter() *gin.Engine {
+	router := gin.Default()
 	router.SetTrustedProxies(nil)
 
-	provider := providers.NewExternalBooksProvider("https://6781684b85151f714b0aa5db.mockapi.io/api/v1/books")
-	metricsHandler := handlers.NewGetMetrics(provider)
-	router.GET("/", metricsHandler.Handle())
+	// Books repository
+	booksRepo := repositories.NewExternalBooksRepository("https://6781684b85151f714b0aa5db.mockapi.io/api/v1/books")
 
+	// Servicio con lógica
+	service := services.NewMetricsService(booksRepo)
+
+	// Handler con dependencias
+	handler := handlers.NewHandler(service)
+
+	// Rutas
+	router.GET("/", handler.GetMetrics)
+
+	return router
+}
+
+func main() {
+	router := setupRouter()
+
+	// Iniciar servidor
+	fmt.Println("🚀 Starting server on :3000")
 	router.Run(":3000")
-	fmt.Println("Starting server on :3000")
 }
