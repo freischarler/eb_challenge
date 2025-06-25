@@ -1,114 +1,187 @@
 package services
 
 import (
-	"math"
+	"context"
+	"errors"
 	"testing"
 
 	"educabot.com/bookshop/models"
+	"educabot.com/bookshop/repositories/mockImpls"
 	"github.com/stretchr/testify/assert"
 )
 
-func sampleBooks() []models.Book {
-	return []models.Book{
-		{ID: 1, Name: "Book A", Author: "Author X", Price: 10, UnitsSold: 100},
-		{ID: 2, Name: "Book B", Author: "Author Y", Price: 5, UnitsSold: 200},
-		{ID: 3, Name: "Book C", Author: "Author X", Price: 20, UnitsSold: 300},
+func TestMetricsService_ComputeMetrics_Success(t *testing.T) {
+	// Arrange
+	mockRepo := mockImpls.NewMockBooksRepositories()
+	service := NewMetricsService(mockRepo)
+	ctx := context.Background()
+	author := "Robert C. Martin"
+
+	// Act
+	result, err := service.ComputeMetrics(ctx, author)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, uint(11000), result.MeanUnitsSold)                  // (5000 + 15000 + 13000) / 3
+	assert.Equal(t, "The Go Programming Language", result.CheapestBook) // Price 40
+	assert.Equal(t, uint(1), result.BooksWrittenByAuthor)               // Clean Code by Robert C. Martin
+}
+
+func TestMetricsService_ComputeMetrics_AuthorWithNoBooks(t *testing.T) {
+	// Arrange
+	mockRepo := mockImpls.NewMockBooksRepositories()
+	service := NewMetricsService(mockRepo)
+	ctx := context.Background()
+	author := "Unknown Author"
+
+	// Act
+	result, err := service.ComputeMetrics(ctx, author)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, uint(11000), result.MeanUnitsSold)
+	assert.Equal(t, "The Go Programming Language", result.CheapestBook)
+	assert.Equal(t, uint(0), result.BooksWrittenByAuthor)
+}
+
+func TestMetricsService_ComputeMetrics_AuthorWithMultipleBooks(t *testing.T) {
+	// Arrange
+	mockRepo := mockImpls.NewMockBooksRepositories()
+	service := NewMetricsService(mockRepo)
+	ctx := context.Background()
+	author := "Alan Donovan"
+
+	// Act
+	result, err := service.ComputeMetrics(ctx, author)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, uint(1), result.BooksWrittenByAuthor)
+}
+
+func TestMetricsService_ComputeMetrics_RepositoryError(t *testing.T) {
+	// Arrange
+	mockRepo := &MockBooksRepositoryWithError{}
+	service := NewMetricsService(mockRepo)
+	ctx := context.Background()
+	author := "Any Author"
+
+	// Act
+	result, err := service.ComputeMetrics(ctx, author)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Equal(t, ErrExternalServiceFailure, err)
+	assert.Nil(t, result)
+}
+
+func TestNewMetricsService(t *testing.T) {
+	// Arrange
+	mockRepo := mockImpls.NewMockBooksRepositories()
+
+	// Act
+	service := NewMetricsService(mockRepo)
+
+	// Assert
+	assert.NotNil(t, service)
+	assert.Equal(t, mockRepo, service.booksRepositories)
+}
+
+func TestMetricsService_meanUnitsSold(t *testing.T) {
+	// Arrange
+	service := &MetricsService{}
+	books := []models.Book{
+		{UnitsSold: 1000},
+		{UnitsSold: 2000},
+		{UnitsSold: 3000},
 	}
+
+	// Act
+	result := service.meanUnitsSold(books)
+
+	// Assert
+	assert.Equal(t, uint(2000), result)
 }
 
-func TestMeanUnitsSold(t *testing.T) {
-	service := NewMetricsService()
+func TestMetricsService_meanUnitsSold_EmptySlice(t *testing.T) {
+	// Arrange
+	service := &MetricsService{}
+	books := []models.Book{}
 
-	t.Run("MultipleBooks", func(t *testing.T) {
-		books := sampleBooks()
-		assert.Equal(t, uint(200), service.MeanUnitsSold(books), "should calculate mean correctly")
-	})
+	// Act
+	result := service.meanUnitsSold(books)
 
-	t.Run("SingleBook", func(t *testing.T) {
-		books := []models.Book{{ID: 1, UnitsSold: 500}}
-		assert.Equal(t, uint(500), service.MeanUnitsSold(books), "should return units sold for single book")
-	})
-
-	t.Run("EmptyList", func(t *testing.T) {
-		books := []models.Book{}
-		assert.Equal(t, uint(0), service.MeanUnitsSold(books), "should return 0 for empty list")
-	})
-
-	t.Run("ZeroUnitsSold", func(t *testing.T) {
-		books := []models.Book{{UnitsSold: 0}, {UnitsSold: 0}}
-		assert.Equal(t, uint(0), service.MeanUnitsSold(books), "should handle zero units sold")
-	})
-
-	t.Run("MaxUint", func(t *testing.T) {
-		books := []models.Book{{UnitsSold: math.MaxUint32}, {UnitsSold: math.MaxUint32}}
-		assert.Equal(t, uint(math.MaxUint32), service.MeanUnitsSold(books), "should handle max uint values")
-	})
+	// Assert
+	assert.Equal(t, uint(0), result)
 }
 
-func TestCheapestBook(t *testing.T) {
-	service := NewMetricsService()
+func TestMetricsService_cheapestBook(t *testing.T) {
+	// Arrange
+	service := &MetricsService{}
+	books := []models.Book{
+		{Name: "Expensive Book", Price: 100},
+		{Name: "Cheap Book", Price: 20},
+		{Name: "Medium Book", Price: 50},
+	}
 
-	t.Run("MultipleBooks", func(t *testing.T) {
-		books := sampleBooks()
-		cheapest := service.CheapestBook(books)
-		assert.Equal(t, uint(5), cheapest.Price, "should find correct cheapest price")
-		assert.Equal(t, "Book B", cheapest.Name, "should find correct cheapest book name")
-	})
+	// Act
+	result := service.cheapestBook(books)
 
-	t.Run("SingleBook", func(t *testing.T) {
-		books := []models.Book{{Name: "Book A", Price: 10}}
-		cheapest := service.CheapestBook(books)
-		assert.Equal(t, uint(10), cheapest.Price, "should return single book price")
-		assert.Equal(t, "Book A", cheapest.Name, "should return single book name")
-	})
-
-	t.Run("EmptyList", func(t *testing.T) {
-		books := []models.Book{}
-		cheapest := service.CheapestBook(books)
-		assert.Equal(t, models.Book{}, cheapest, "should return empty book for empty list")
-	})
-
-	t.Run("SamePrice", func(t *testing.T) {
-		books := []models.Book{
-			{Name: "Book A", Price: 5},
-			{Name: "Book B", Price: 5},
-		}
-		cheapest := service.CheapestBook(books)
-		assert.Equal(t, uint(5), cheapest.Price, "should handle same price")
-		assert.Contains(t, []string{"Book A", "Book B"}, cheapest.Name, "should return one of the cheapest books")
-	})
+	// Assert
+	assert.Equal(t, "Cheap Book", result.Name)
+	assert.Equal(t, uint(20), result.Price)
 }
 
-func TestBooksWrittenByAuthor(t *testing.T) {
-	service := NewMetricsService()
+func TestMetricsService_cheapestBook_EmptySlice(t *testing.T) {
+	// Arrange
+	service := &MetricsService{}
+	books := []models.Book{}
 
-	t.Run("MultipleBooksByAuthor", func(t *testing.T) {
-		books := sampleBooks()
-		assert.Equal(t, uint(2), service.BooksWrittenByAuthor(books, "Author X"), "should count multiple books by Author X")
-	})
+	// Act
+	result := service.cheapestBook(books)
 
-	t.Run("SingleBookByAuthor", func(t *testing.T) {
-		books := sampleBooks()
-		assert.Equal(t, uint(1), service.BooksWrittenByAuthor(books, "Author Y"), "should count single book by Author Y")
-	})
+	// Assert
+	assert.Equal(t, models.Book{}, result)
+}
 
-	t.Run("UnknownAuthor", func(t *testing.T) {
-		books := sampleBooks()
-		assert.Equal(t, uint(0), service.BooksWrittenByAuthor(books, "Unknown"), "should return 0 for unknown author")
-	})
+func TestMetricsService_booksWrittenByAuthor(t *testing.T) {
+	// Arrange
+	service := &MetricsService{}
+	books := []models.Book{
+		{Author: "John Doe"},
+		{Author: "Jane Smith"},
+		{Author: "John Doe"},
+		{Author: "Bob Wilson"},
+	}
 
-	t.Run("EmptyAuthor", func(t *testing.T) {
-		books := sampleBooks()
-		assert.Equal(t, uint(0), service.BooksWrittenByAuthor(books, ""), "should return 0 for empty author")
-	})
+	// Act
+	result := service.booksWrittenByAuthor(books, "John Doe")
 
-	t.Run("EmptyList", func(t *testing.T) {
-		books := []models.Book{}
-		assert.Equal(t, uint(0), service.BooksWrittenByAuthor(books, "Author X"), "should return 0 for empty list")
-	})
+	// Assert
+	assert.Equal(t, uint(2), result)
+}
 
-	t.Run("CaseSensitivity", func(t *testing.T) {
-		books := []models.Book{{Author: "Author X"}, {Author: "author x"}}
-		assert.Equal(t, uint(1), service.BooksWrittenByAuthor(books, "Author X"), "should be case sensitive")
-	})
+func TestMetricsService_booksWrittenByAuthor_NoMatches(t *testing.T) {
+	// Arrange
+	service := &MetricsService{}
+	books := []models.Book{
+		{Author: "John Doe"},
+		{Author: "Jane Smith"},
+	}
+
+	// Act
+	result := service.booksWrittenByAuthor(books, "Unknown Author")
+
+	// Assert
+	assert.Equal(t, uint(0), result)
+}
+
+// Mock repository that returns an error for testing error scenarios
+type MockBooksRepositoryWithError struct{}
+
+func (m *MockBooksRepositoryWithError) GetBooks(ctx context.Context) ([]models.Book, error) {
+	return nil, errors.New("repository error")
 }

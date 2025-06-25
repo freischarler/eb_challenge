@@ -1,18 +1,46 @@
 package services
 
 import (
+	"context"
+	"errors"
 	"slices"
 
 	"educabot.com/bookshop/models"
+	"educabot.com/bookshop/repositories"
 )
 
-type MetricsService struct{}
+var ErrExternalServiceFailure = errors.New("error fetching books from external service")
+var ErrBookNotFound = errors.New("book not found")
 
-func NewMetricsService() *MetricsService {
-	return &MetricsService{}
+type MetricsResult struct {
+	MeanUnitsSold        uint   `json:"mean_units_sold"`
+	CheapestBook         string `json:"cheapest_book"`
+	BooksWrittenByAuthor uint   `json:"books_written_by_author"`
 }
 
-func (s *MetricsService) MeanUnitsSold(books []models.Book) uint {
+type MetricsService struct {
+	booksRepositories repositories.BooksRepository
+}
+
+func NewMetricsService(repository repositories.BooksRepository) *MetricsService {
+	return &MetricsService{booksRepositories: repository}
+}
+
+func (s *MetricsService) ComputeMetrics(ctx context.Context, author string) (*MetricsResult, error) {
+	books, err := s.booksRepositories.GetBooks(ctx)
+	if err != nil {
+		return nil, ErrExternalServiceFailure
+	}
+
+	result := &MetricsResult{
+		MeanUnitsSold:        s.meanUnitsSold(books),
+		CheapestBook:         s.cheapestBook(books).Name,
+		BooksWrittenByAuthor: s.booksWrittenByAuthor(books, author),
+	}
+	return result, nil
+}
+
+func (s *MetricsService) meanUnitsSold(books []models.Book) uint {
 	if len(books) == 0 {
 		return 0
 	}
@@ -23,7 +51,7 @@ func (s *MetricsService) MeanUnitsSold(books []models.Book) uint {
 	return sum / uint(len(books))
 }
 
-func (s *MetricsService) CheapestBook(books []models.Book) models.Book {
+func (s *MetricsService) cheapestBook(books []models.Book) models.Book {
 	if len(books) == 0 {
 		return models.Book{}
 	}
@@ -32,7 +60,7 @@ func (s *MetricsService) CheapestBook(books []models.Book) models.Book {
 	})
 }
 
-func (s *MetricsService) BooksWrittenByAuthor(books []models.Book, author string) uint {
+func (s *MetricsService) booksWrittenByAuthor(books []models.Book, author string) uint {
 	var count uint
 	for _, book := range books {
 		if book.Author == author {
