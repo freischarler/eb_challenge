@@ -21,13 +21,15 @@ bookshop/
 ├── go.mod
 ├── go.sum
 ├── main.go
+├── main_test.go
 ├── handlers/
 │   └── handler.go
+│   └── handler_test.go
 ├── models/
 │   └── models.go
-├── providers/
-│   ├── providers.go
-│   └── providers_test.go
+├── repositories/
+│   ├── books.go
+│   └── books_test.go
 ├── services/
 │   ├── metrics.go
 │   └── metrics_test.go
@@ -36,7 +38,7 @@ bookshop/
 - `main.go`: Entry point, sets up the Gin server and routes.
 - `handlers/`: Contains the request handler logic for processing API requests.
 - `models/`: Defines the `Book` data structure.
-- `providers/`: Handles fetching book data from an external API.
+- `repositories/`: Handles fetching book data from an external API.
 - `services/`: Contains business logic for calculating book metrics.
 - `*_test.go`: Unit tests for `providers` and `services` packages.
 
@@ -72,14 +74,14 @@ bookshop/
    - Optional query parameter: `author` (e.g., `?author=John%20Doe`)
    - Example request:
      ```bash
-     curl "http://localhost:3000?author=John%20Doe"
+     curl "http://localhost:3000/?author=Ursula K. Le Guin
      ```
    - Example response:
      ```json
      {
-       "mean_units_sold": 150,
-       "cheapest_book": "Book A",
-       "books_written_by_author": 2
+        "mean_units_sold": 59333333,
+        "cheapest_book": "A Wizard of Earthsea",
+        "books_written_by_author": 1
      }
      ```
 
@@ -91,9 +93,36 @@ bookshop/
   - `mean_units_sold` (uint): Average number of units sold across all books.
   - `cheapest_book` (string): Name of the book with the lowest price.
   - `books_written_by_author` (uint): Number of books by the specified author (0 if no author is provided or no books match).
-- **Error Handling**:
-  - Returns HTTP 200 with metrics even if the external API fails (returns empty metrics).
-  - Logs errors (connection issues, invalid JSON, etc.) to the console.
+
+## Error Handling
+
+The API implements comprehensive error handling across all layers:
+
+### Repository Layer Errors
+- **`ErrServiceUnavailable`**: External service connection failed
+- **Network timeouts**: 10-second timeout on HTTP requests
+- **Invalid responses**: Non-200 HTTP status codes
+- **JSON parsing errors**: Malformed external API responses
+
+### Service Layer Errors  
+- **`ErrExternalServiceFailure`**: Wraps repository errors for domain consistency
+- **`ErrBookNotFound`**: No books available for processing
+
+### Handler Layer Error Responses
+
+| Scenario | HTTP Status | Response |
+|----------|-------------|----------|
+| Success | 200 OK | Metrics JSON |
+| Invalid query parameters | 400 Bad Request | `{"error": "invalid query parameters"}` |
+| External service failure | 502 Bad Gateway | `{"error": "error fetching books from external service"}` |
+| Internal server error | 500 Internal Server Error | `{"error": "internal server error"}` |
+
+**Error Response Format:**
+```json
+{
+  "error": "error description"
+}
+```
 
 ## Running Tests
 Unit tests are provided for the `providers` and `services` packages, using `testing` and `testify`.
@@ -145,12 +174,4 @@ A `GET /?author=John%20Doe` request would return:
 
 ## Notes
 - The external API URL is hardcoded in `main.go`. Consider using environment variables for flexibility.
-- Error handling could be improved to return HTTP error codes (e.g., 500) when the external API fails.
-- Additional tests for the `handlers` package could be added for complete coverage.
 - Logging is basic (uses `log.Printf`). Consider a structured logging library like `zerolog` for production.
-
-## Contributing
-Feel free to submit issues or pull requests to the repository. Ensure all changes include appropriate tests and follow the existing code style.
-
-## License
-This project is licensed under the MIT License.
